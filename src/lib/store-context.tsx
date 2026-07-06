@@ -13,6 +13,10 @@ export interface StoreContextValue {
   promotions: Promotion[];
   submitOrder: (records: Omit<PurchaseRecord, "id" | "delivered">[]) => Promise<void>;
   markDelivered: (id: string) => Promise<void>;
+  addInventoryItem: (item: Omit<InventoryItem, "id">) => Promise<string | null>;
+  updateInventoryItem: (id: string, patch: Omit<InventoryItem, "id">) => Promise<string | null>;
+  deleteInventoryItem: (id: string) => Promise<string | null>;
+  activatePromotion: (id: string) => Promise<void>;
 }
 
 export const StoreContext = createContext<StoreContextValue | undefined>(undefined);
@@ -214,9 +218,111 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setPurchaseHistory((prev) => prev.map((r) => (r.id === id ? { ...r, delivered: true } : r)));
   };
 
+  const addInventoryItem: StoreContextValue["addInventoryItem"] = async (item) => {
+    if (!user) return "Not signed in.";
+
+    const { data, error } = await supabase
+      .from("inventory_items")
+      .insert({
+        organization_id: user.organizationId,
+        name: item.name,
+        category: item.category,
+        supplier_id: item.supplierId || null,
+        unit: item.unit,
+        quantity: item.quantity,
+        par: item.par,
+        reorder_point: item.reorderPoint,
+        unit_cost: item.unitCost,
+      })
+      .select("*")
+      .single();
+
+    if (error || !data) {
+      console.error("Failed to add inventory item", error);
+      return error?.message ?? "Failed to add item.";
+    }
+
+    setInventory((prev) =>
+      [
+        ...prev,
+        {
+          id: data.id,
+          name: data.name,
+          category: data.category as InventoryItem["category"],
+          supplierId: data.supplier_id ?? "",
+          unit: data.unit,
+          quantity: Number(data.quantity),
+          par: Number(data.par),
+          reorderPoint: Number(data.reorder_point),
+          unitCost: Number(data.unit_cost),
+        },
+      ].sort((a, b) => a.name.localeCompare(b.name)),
+    );
+    return null;
+  };
+
+  const updateInventoryItem: StoreContextValue["updateInventoryItem"] = async (id, patch) => {
+    const { error } = await supabase
+      .from("inventory_items")
+      .update({
+        name: patch.name,
+        category: patch.category,
+        supplier_id: patch.supplierId || null,
+        unit: patch.unit,
+        quantity: patch.quantity,
+        par: patch.par,
+        reorder_point: patch.reorderPoint,
+        unit_cost: patch.unitCost,
+      })
+      .eq("id", id);
+
+    if (error) {
+      console.error("Failed to update inventory item", error);
+      return error.message;
+    }
+
+    setInventory((prev) => prev.map((i) => (i.id === id ? { ...patch, id } : i)));
+    return null;
+  };
+
+  const deleteInventoryItem: StoreContextValue["deleteInventoryItem"] = async (id) => {
+    const { error } = await supabase.from("inventory_items").delete().eq("id", id);
+    if (error) {
+      console.error("Failed to delete inventory item", error);
+      return error.message;
+    }
+
+    // Deleting an item cascades to its purchase records in the database.
+    setInventory((prev) => prev.filter((i) => i.id !== id));
+    setPurchaseHistory((prev) => prev.filter((r) => r.itemId !== id));
+    return null;
+  };
+
+  const activatePromotion: StoreContextValue["activatePromotion"] = async (id) => {
+    const { error } = await supabase.from("promotions").update({ status: "Active" }).eq("id", id);
+    if (error) {
+      console.error("Failed to activate promotion", error);
+      return;
+    }
+    setPromotions((prev) => prev.map((p) => (p.id === id ? { ...p, status: "Active" } : p)));
+  };
+
   return (
     <StoreContext.Provider
-      value={{ loading, inventory, suppliers, purchaseHistory, customers, promotions, submitOrder, markDelivered }}
+      value={{
+        loading,
+        inventory,
+        suppliers,
+        purchaseHistory,
+        customers,
+        promotions,
+        submitOrder,
+        markDelivered,
+        addInventoryItem,
+        updateInventoryItem,
+        deleteInventoryItem,
+        activatePromotion,
+      }}
     >
       {children}
     </StoreContext.Provider>

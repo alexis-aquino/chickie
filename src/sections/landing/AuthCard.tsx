@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useAuth } from "@/hooks/use-auth";
+import { supabase } from "@/lib/supabase";
 import type { Role } from "@/types/auth";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import logo from "@/assets/logo.png";
 import { GoogleIcon } from "./GoogleIcon";
 import { Crown, UserCog, Eye, EyeOff, ArrowRight, MailCheck } from "lucide-react";
+import { toast } from "sonner";
 
 type AuthMode = "signin" | "signup";
 
@@ -90,6 +92,22 @@ export function AuthCard() {
     const err = await signInWithGoogle();
     if (err) setError(err);
     setGoogleLoading(false);
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email.trim()) {
+      setError("Enter your email above first, then click \"Forgot password?\".");
+      return;
+    }
+    setError(null);
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: window.location.origin,
+    });
+    if (resetError) {
+      setError(resetError.message);
+      return;
+    }
+    toast.success("Password reset email sent!", { description: `Check ${email.trim()} for a reset link.` });
   };
 
   if (awaitingConfirmation) {
@@ -224,7 +242,7 @@ export function AuthCard() {
             <div className="flex items-center justify-between">
               <Label htmlFor="auth-pw">Password</Label>
               {mode === "signin" && (
-                <button type="button" className="text-xs text-brand hover:underline">
+                <button type="button" onClick={handleForgotPassword} className="text-xs text-brand hover:underline">
                   Forgot password?
                 </button>
               )}

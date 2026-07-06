@@ -2,13 +2,26 @@ import { useMemo, useState } from "react";
 import { useStore } from "@/hooks/use-store";
 import { useAuth } from "@/hooks/use-auth";
 import { stockStatus, supplierName } from "@/utils/inventory";
-import type { Category, StockStatus } from "@/types/inventory";
+import type { Category, InventoryItem, StockStatus } from "@/types/inventory";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Package, AlertTriangle, CheckCircle2, TrendingDown, PhilippinePeso } from "lucide-react";
+import { InventoryItemDialog } from "./InventoryItemDialog";
+import {
+  Search,
+  Package,
+  AlertTriangle,
+  CheckCircle2,
+  TrendingDown,
+  PhilippinePeso,
+  Plus,
+  Pencil,
+  Trash2,
+} from "lucide-react";
+import { toast } from "sonner";
 
 const CATEGORIES: (Category | "All")[] = [
   "All",
@@ -44,9 +57,30 @@ const PROGRESS_COLOR: Record<StockStatus, string> = {
 type StatusFilter = "All" | StockStatus;
 
 export function InventoryTable() {
-  const { inventory, suppliers } = useStore();
+  const { inventory, suppliers, deleteInventoryItem } = useStore();
   const { user } = useAuth();
   const isOwner = user?.role === "owner";
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
+
+  const openAddDialog = () => {
+    setEditingItem(null);
+    setDialogOpen(true);
+  };
+  const openEditDialog = (item: InventoryItem) => {
+    setEditingItem(item);
+    setDialogOpen(true);
+  };
+
+  const handleDelete = async (item: InventoryItem) => {
+    if (!window.confirm(`Delete "${item.name}"? This also removes its purchase history. This can't be undone.`)) {
+      return;
+    }
+    const error = await deleteInventoryItem(item.id);
+    if (error) toast.error(error);
+    else toast.success(`${item.name} removed from inventory.`);
+  };
 
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<Category | "All">("All");
@@ -182,6 +216,10 @@ export function InventoryTable() {
                 <SelectItem value="Healthy">Healthy</SelectItem>
               </SelectContent>
             </Select>
+            <Button size="sm" className="bg-brand hover:bg-brand-dark text-white gap-1.5" onClick={openAddDialog}>
+              <Plus className="size-4" aria-hidden="true" />
+              Add Item
+            </Button>
           </div>
         </div>
 
@@ -197,13 +235,16 @@ export function InventoryTable() {
                 {isOwner && <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground">Unit Cost</th>}
                 {isOwner && <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground">Value</th>}
                 <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground">Status</th>
+                <th className="px-4 py-3"></th>
               </tr>
             </thead>
             <tbody>
               {rows.length === 0 && (
                 <tr>
-                  <td colSpan={isOwner ? 8 : 6} className="text-center text-muted-foreground py-12">
-                    No items match your filters.
+                  <td colSpan={isOwner ? 9 : 7} className="text-center text-muted-foreground py-12">
+                    {inventory.length === 0
+                      ? "No inventory yet — click \"Add Item\" to log your first ingredient."
+                      : "No items match your filters."}
                   </td>
                 </tr>
               )}
@@ -212,7 +253,7 @@ export function InventoryTable() {
                 if (entry.type === "group") {
                   return (
                     <tr key={`group-${entry.cat}`} className="bg-muted/30">
-                      <td colSpan={isOwner ? 8 : 6} className="px-4 py-2">
+                      <td colSpan={isOwner ? 9 : 7} className="px-4 py-2">
                         <Badge variant="outline" className={`text-xs font-semibold ${CATEGORY_COLORS[entry.cat]}`}>
                           {entry.cat}
                         </Badge>
@@ -258,6 +299,28 @@ export function InventoryTable() {
                         {status}
                       </Badge>
                     </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-7 text-muted-foreground hover:text-foreground"
+                          onClick={() => openEditDialog(item)}
+                          aria-label={`Edit ${item.name}`}
+                        >
+                          <Pencil className="size-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-7 text-muted-foreground hover:text-destructive"
+                          onClick={() => handleDelete(item)}
+                          aria-label={`Delete ${item.name}`}
+                        >
+                          <Trash2 className="size-3.5" />
+                        </Button>
+                      </div>
+                    </td>
                   </tr>
                 );
               })}
@@ -265,6 +328,8 @@ export function InventoryTable() {
           </table>
         </div>
       </Card>
+
+      <InventoryItemDialog open={dialogOpen} onOpenChange={setDialogOpen} item={editingItem} />
     </div>
   );
 }

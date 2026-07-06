@@ -7,11 +7,14 @@ import type { Role, SignUpParams, UserProfile } from "@/types/auth";
 export interface AuthContextValue {
   user: UserProfile | null;
   loading: boolean;
+  /** True once Supabase confirms the visitor followed a password-reset link. */
+  passwordRecovery: boolean;
   signIn: (email: string, password: string) => Promise<string | null>;
   signUp: (params: SignUpParams) => Promise<{ error: string | null; needsEmailConfirmation: boolean }>;
   signInWithGoogle: () => Promise<string | null>;
   logout: () => Promise<void>;
   updateProfile: (patch: Partial<Pick<UserProfile, "name" | "phone" | "bio" | "avatar" | "theme" | "accentColor">>) => Promise<void>;
+  completePasswordReset: (newPassword: string) => Promise<string | null>;
 }
 
 export const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -57,6 +60,7 @@ function friendlyError(message: string): string {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [passwordRecovery, setPasswordRecovery] = useState(false);
 
   // Fetches (or, on first login after signup, creates) the profile/org for
   // the authenticated Supabase user and syncs it into local state.
@@ -121,7 +125,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     });
 
-    const { data: subscription } = supabase.auth.onAuthStateChange((_event: string, session: Session | null) => {
+    const { data: subscription } = supabase.auth.onAuthStateChange((event: string, session: Session | null) => {
+      if (event === "PASSWORD_RECOVERY") {
+        setPasswordRecovery(true);
+        return;
+      }
       if (session) {
         syncProfile(session.user);
       } else {
@@ -205,10 +213,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser({ ...user, ...patch });
   };
 
+  const completePasswordReset = async (newPassword: string): Promise<string | null> => {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) return error.message;
+    setPasswordRecovery(false);
+    return null;
+  };
+
   const value = useMemo<AuthContextValue>(
-    () => ({ user, loading, signIn, signUp, signInWithGoogle, logout, updateProfile }),
+    () => ({
+      user,
+      loading,
+      passwordRecovery,
+      signIn,
+      signUp,
+      signInWithGoogle,
+      logout,
+      updateProfile,
+      completePasswordReset,
+    }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [user, loading],
+    [user, loading, passwordRecovery],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

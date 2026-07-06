@@ -26,22 +26,29 @@ export function DashboardLayout() {
 
   // The user's chosen accent color becomes this session's brand color —
   // every `bg-brand`/`text-brand`/`border-brand` utility in the dashboard
-  // subtree re-resolves against these overridden CSS variables.
+  // subtree re-resolves against these overridden CSS variables, and the
+  // page/header backgrounds get a matching tint so the theme reads as a
+  // real reskin rather than just a button color swap.
   const brandVars = useMemo(
     () =>
       ({
         "--brand": accentColor,
         "--brand-dark": shade(accentColor, -15),
         "--brand-light": shade(accentColor, 12),
+        "--brand-bg": shade(accentColor, 88),
+        "--brand-bg-header": shade(accentColor, 95),
       }) as CSSProperties,
     [accentColor],
   );
 
   return (
-    <div className="min-h-full bg-muted/30" style={brandVars}>
+    <div className="min-h-full" style={{ ...brandVars, backgroundColor: "var(--brand-bg)" }}>
       <Toaster richColors position="top-right" />
 
-      <header className="border-b bg-background sticky top-0 z-10">
+      <header
+        className="border-b sticky top-0 z-10"
+        style={{ backgroundColor: "var(--brand-bg-header)", borderColor: "color-mix(in srgb, var(--brand) 15%, transparent)" }}
+      >
         <div className="max-w-7xl mx-auto px-6 py-3.5 flex items-center justify-between gap-4">
           {/* Brand */}
           <Link to="/dashboard" className="flex items-center gap-3">

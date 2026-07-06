@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Zap, AlertTriangle, Package, Users, Calendar, CheckCircle2, Clock, Tag } from "lucide-react";
+import { toast } from "sonner";
 
 const STATUS_STYLES = {
   Active: "bg-emerald-50 text-emerald-700 border-emerald-300",
@@ -16,7 +17,12 @@ const STATUS_STYLES = {
 };
 
 export function PromotionSuggestions() {
-  const { inventory, customers, promotions } = useStore();
+  const { inventory, customers, promotions, activatePromotion } = useStore();
+
+  const handleActivate = async (title: string, id: string) => {
+    await activatePromotion(id);
+    toast.success(`"${title}" is now active.`);
+  };
 
   // Surface any Low/Critical items that don't yet have a promotion
   const unlinkedAlerts = inventory.filter((item) => {
@@ -178,11 +184,12 @@ export function PromotionSuggestions() {
 
               {promo.status === "Draft" && (
                 <div className="flex gap-2 pt-1 border-t">
-                  <Button size="sm" className="bg-brand hover:bg-brand-dark text-white gap-1.5">
+                  <Button
+                    size="sm"
+                    className="bg-brand hover:bg-brand-dark text-white gap-1.5"
+                    onClick={() => handleActivate(promo.title, promo.id)}
+                  >
                     <Zap className="size-3.5" aria-hidden="true" /> Activate Promotion
-                  </Button>
-                  <Button size="sm" variant="outline">
-                    Edit
                   </Button>
                 </div>
               )}
