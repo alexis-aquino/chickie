@@ -14,4 +14,7 @@ dist-ssr
 .DS_Store
 
 .vercel
-.env*
+
+__pycache__/
+*.pyc
+.venv/
