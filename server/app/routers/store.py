@@ -117,9 +117,9 @@ def _promotion(p: models.Promotion) -> schemas.Promotion:
     )
 
 
-def _parse_uuid(value: str, field: str) -> uuid.UUID:
+def _parse_uuid(value: str, field: str) -> str:
     try:
-        return uuid.UUID(value)
+        return str(uuid.UUID(value))
     except ValueError:
         raise HTTPException(status_code=422, detail=f"Invalid {field}: {value!r}")
 
@@ -190,7 +190,7 @@ def submit_purchase_records(
     inserted: list[models.PurchaseRecord] = []
     for r in records:
         row = models.PurchaseRecord(
-            id=uuid.uuid4(),
+            id=str(uuid.uuid4()),
             organization_id=org_id,
             item_id=_parse_uuid(r.item_id, "itemId"),
             supplier_id=_parse_uuid(r.supplier_id, "supplierId") if r.supplier_id else None,
@@ -207,7 +207,7 @@ def submit_purchase_records(
     # Mirror the "latest order updates on-hand stock" behavior: aggregate the
     # quantity delivered per item across all lines just inserted, then bump
     # each affected inventory item's stock, cost, and supplier in one go.
-    by_item: dict[uuid.UUID, dict[str, Any]] = {}
+    by_item: dict[str, dict[str, Any]] = {}
     for r in inserted:
         agg = by_item.setdefault(r.item_id, {"qty": 0.0, "price": r.unit_price, "supplier_id": r.supplier_id})
         agg["qty"] += float(r.quantity)
@@ -249,7 +249,7 @@ def create_inventory_item(
     db: Session = Depends(get_db),
 ) -> schemas.InventoryItem:
     row = models.InventoryItem(
-        id=uuid.uuid4(),
+        id=str(uuid.uuid4()),
         organization_id=principal.organization_id,
         name=item.name,
         category=item.category,

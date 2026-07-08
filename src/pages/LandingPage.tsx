@@ -5,15 +5,9 @@ import { Hero } from "@/sections/landing/Hero";
 import { FeaturesSection } from "@/sections/landing/FeaturesSection";
 import { CTABanner } from "@/sections/landing/CTABanner";
 import { Footer } from "@/sections/landing/Footer";
-import { ResetPasswordCard } from "@/sections/landing/ResetPasswordCard";
 
 export function LandingPage() {
-  const { user, loading, passwordRecovery } = useAuth();
-
-  // Take priority over everything else: someone arriving via a password
-  // reset email must be able to set a new password even if a stale session
-  // would otherwise bounce them straight to the dashboard.
-  if (passwordRecovery) return <ResetPasswordCard />;
+  const { user, loading } = useAuth();
 
   if (loading) {
     return (

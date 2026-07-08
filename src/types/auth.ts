@@ -11,7 +11,7 @@ export interface UserProfile {
   phone: string;
   theme: "default" | "crimson" | "ocean" | "forest";
   accentColor: string;
-  provider: "email" | "google";
+  provider: "email";
 }
 
 export interface SignUpParams {

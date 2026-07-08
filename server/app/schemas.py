@@ -117,3 +117,50 @@ class StoreSnapshot(CamelModel):
     purchase_history: list[PurchaseRecord]
     customers: list[Customer]
     promotions: list[Promotion]
+
+
+class UserProfile(CamelModel):
+    id: str
+    organization_id: str
+    name: str
+    email: str
+    role: str
+    avatar: str | None
+    bio: str
+    phone: str
+    theme: str
+    accent_color: str
+    provider: str
+
+
+class RegisterRequest(CamelModel):
+    name: str
+    business_name: str
+    email: str
+    password: str
+    role: str
+    seed_demo: bool = True
+
+
+class LoginRequest(CamelModel):
+    email: str
+    password: str
+
+
+class TokenResponse(CamelModel):
+    access_token: str
+    user: UserProfile
+
+
+class ProfileUpdate(CamelModel):
+    name: str | None = None
+    phone: str | None = None
+    bio: str | None = None
+    avatar: str | None = None
+    theme: str | None = None
+    accent_color: str | None = None
+
+
+class ChangePasswordRequest(CamelModel):
+    current_password: str
+    new_password: str

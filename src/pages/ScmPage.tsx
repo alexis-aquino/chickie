@@ -14,8 +14,8 @@ import { PurchaseHistory } from "@/sections/scm/PurchaseHistory";
 import { TransactionHistory } from "@/sections/scm/TransactionHistory";
 import { Package, Users, AlertTriangle, PhilippinePeso } from "lucide-react";
 
-// recharts is the single heaviest dependency in the bundle; only owners
-// viewing the Analytics tab need it, so split it into its own chunk.
+// Only owners viewing the Analytics tab need this chart, so split it into
+// its own chunk instead of loading it for every dashboard visit.
 const CategoryChart = lazy(() =>
   import("@/sections/scm/CategoryChart").then((m) => ({ default: m.CategoryChart })),
 );

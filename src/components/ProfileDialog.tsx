@@ -1,6 +1,5 @@
 import { useState, useRef, useId, type ChangeEvent } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { supabase } from "@/lib/supabase";
 import { initials } from "@/utils/format";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -31,7 +30,7 @@ type ThemeId = (typeof THEMES)[number]["id"];
 const ACCENT_COLORS = ["#dc2626", "#e11d48", "#7c3aed", "#2563eb", "#0891b2", "#059669", "#d97706", "#db2777"];
 
 export function ProfileDialog({ open, onOpenChange }: Props) {
-  const { user, updateProfile, logout } = useAuth();
+  const { user, updateProfile, logout, changePassword } = useAuth();
   const uid = useId();
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -90,18 +89,9 @@ export function ProfileDialog({ open, onOpenChange }: Props) {
 
     setChangingPassword(true);
     try {
-      const { error: verifyError } = await supabase.auth.signInWithPassword({
-        email: user.email,
-        password: currentPw,
-      });
-      if (verifyError) {
-        toast.error("Current password is incorrect.");
-        return;
-      }
-
-      const { error: updateError } = await supabase.auth.updateUser({ password: newPw });
-      if (updateError) {
-        toast.error(updateError.message);
+      const error = await changePassword(currentPw, newPw);
+      if (error) {
+        toast.error(error);
         return;
       }
 

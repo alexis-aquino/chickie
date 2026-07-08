@@ -1,21 +1,17 @@
 import { useState, type FormEvent } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { supabase } from "@/lib/supabase";
 import type { Role } from "@/types/auth";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import logo from "@/assets/logo.png";
-import { GoogleIcon } from "./GoogleIcon";
-import { Crown, UserCog, Eye, EyeOff, ArrowRight, MailCheck } from "lucide-react";
-import { toast } from "sonner";
+import { Crown, UserCog, Eye, EyeOff, ArrowRight } from "lucide-react";
 
 type AuthMode = "signin" | "signup";
 
 export function AuthCard() {
-  const { signIn, signUp, signInWithGoogle } = useAuth();
+  const { signIn, signUp } = useAuth();
   const [mode, setMode] = useState<AuthMode>("signin");
   const [role, setRole] = useState<Role>("owner");
   const [name, setName] = useState("");
@@ -27,8 +23,6 @@ export function AuthCard() {
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
-  const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
 
   const reset = () => {
     setError(null);
@@ -63,7 +57,7 @@ export function AuthCard() {
 
       setLoading(true);
       try {
-        const { error: signupError, needsEmailConfirmation } = await signUp({
+        const { error: signupError } = await signUp({
           name: name.trim(),
           businessName: businessName.trim(),
           email,
@@ -72,7 +66,6 @@ export function AuthCard() {
           seedDemo,
         });
         if (signupError) setError(signupError);
-        else if (needsEmailConfirmation) setAwaitingConfirmation(true);
       } finally {
         setLoading(false);
       }
@@ -86,56 +79,6 @@ export function AuthCard() {
       }
     }
   };
-
-  const handleGoogle = async () => {
-    setGoogleLoading(true);
-    const err = await signInWithGoogle();
-    if (err) setError(err);
-    setGoogleLoading(false);
-  };
-
-  const handleForgotPassword = async () => {
-    if (!email.trim()) {
-      setError("Enter your email above first, then click \"Forgot password?\".");
-      return;
-    }
-    setError(null);
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: window.location.origin,
-    });
-    if (resetError) {
-      setError(resetError.message);
-      return;
-    }
-    toast.success("Password reset email sent!", { description: `Check ${email.trim()} for a reset link.` });
-  };
-
-  if (awaitingConfirmation) {
-    return (
-      <Card className="w-full max-w-md shadow-2xl border-0 ring-1 ring-black/5">
-        <div className="px-7 py-10 flex flex-col items-center gap-3 text-center">
-          <div className="size-14 rounded-full bg-brand/10 flex items-center justify-center">
-            <MailCheck className="size-7 text-brand" aria-hidden="true" />
-          </div>
-          <h2 className="text-xl font-semibold">Check your email</h2>
-          <p className="text-sm text-muted-foreground">
-            We sent a confirmation link to <span className="font-medium text-foreground">{email}</span>. Click it to
-            activate your account, then come back and sign in.
-          </p>
-          <Button
-            variant="outline"
-            className="mt-2"
-            onClick={() => {
-              setAwaitingConfirmation(false);
-              switchMode("signin");
-            }}
-          >
-            Back to sign in
-          </Button>
-        </div>
-      </Card>
-    );
-  }
 
   return (
     <Card className="w-full max-w-md shadow-2xl border-0 ring-1 ring-black/5">
@@ -172,30 +115,6 @@ export function AuthCard() {
             ))}
           </div>
         )}
-
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full gap-3 h-11 text-sm font-medium"
-          onClick={handleGoogle}
-          disabled={googleLoading}
-        >
-          {googleLoading ? (
-            <span
-              className="size-5 rounded-full border-2 border-muted-foreground/30 border-t-brand animate-spin"
-              aria-hidden="true"
-            />
-          ) : (
-            <GoogleIcon />
-          )}
-          {googleLoading ? "Redirecting to Google…" : "Continue with Google"}
-        </Button>
-
-        <div className="flex items-center gap-3">
-          <Separator className="flex-1" />
-          <span className="text-xs text-muted-foreground shrink-0">or with email</span>
-          <Separator className="flex-1" />
-        </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-3" noValidate>
           {mode === "signup" && (
@@ -239,14 +158,7 @@ export function AuthCard() {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="auth-pw">Password</Label>
-              {mode === "signin" && (
-                <button type="button" onClick={handleForgotPassword} className="text-xs text-brand hover:underline">
-                  Forgot password?
-                </button>
-              )}
-            </div>
+            <Label htmlFor="auth-pw">Password</Label>
             <div className="relative">
               <Input
                 id="auth-pw"

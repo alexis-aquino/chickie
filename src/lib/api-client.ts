@@ -1,8 +1,21 @@
-import { supabase } from "@/lib/supabase";
 import type { InventoryItem, PurchaseRecord, Supplier } from "@/types/inventory";
 import type { Customer, Promotion } from "@/types/crm";
+import type { Role, UserProfile } from "@/types/auth";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
+const TOKEN_KEY = "chickie_token";
+
+export function getToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+export function setToken(token: string): void {
+  localStorage.setItem(TOKEN_KEY, token);
+}
+
+export function clearToken(): void {
+  localStorage.removeItem(TOKEN_KEY);
+}
 
 export interface StoreSnapshot {
   suppliers: Supplier[];
@@ -15,15 +28,13 @@ export interface StoreSnapshot {
 class ApiError extends Error {}
 
 async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  const token = getToken();
 
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",
-      ...(session ? { Authorization: `Bearer ${session.access_token}` } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     },
   });
@@ -74,6 +85,65 @@ export function deleteInventoryItem(id: string): Promise<void> {
 
 export function activatePromotion(id: string): Promise<Promotion> {
   return apiFetch<Promotion>(`/api/promotions/${id}/activate`, { method: "PATCH" });
+}
+
+/** Fetches the backend's matplotlib-rendered chart as a displayable object URL. */
+export async function fetchInventoryByCategoryChartUrl(): Promise<string> {
+  const token = getToken();
+  const res = await fetch(`${API_BASE}/api/analytics/inventory-by-category.png`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) throw new ApiError(`Failed to load chart (status ${res.status})`);
+  const blob = await res.blob();
+  return URL.createObjectURL(blob);
+}
+
+export interface AuthTokenResponse {
+  accessToken: string;
+  user: UserProfile;
+}
+
+export interface RegisterParams {
+  name: string;
+  businessName: string;
+  email: string;
+  password: string;
+  role: Role;
+  seedDemo: boolean;
+}
+
+export function register(params: RegisterParams): Promise<AuthTokenResponse> {
+  return apiFetch<AuthTokenResponse>("/api/auth/register", {
+    method: "POST",
+    body: JSON.stringify(params),
+  });
+}
+
+export function login(email: string, password: string): Promise<AuthTokenResponse> {
+  return apiFetch<AuthTokenResponse>("/api/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  });
+}
+
+export function fetchMe(): Promise<UserProfile> {
+  return apiFetch<UserProfile>("/api/auth/me");
+}
+
+export function updateProfile(
+  patch: Partial<Pick<UserProfile, "name" | "phone" | "bio" | "avatar" | "theme" | "accentColor">>,
+): Promise<UserProfile> {
+  return apiFetch<UserProfile>("/api/auth/me", {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+}
+
+export function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  return apiFetch<void>("/api/auth/change-password", {
+    method: "POST",
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
 }
 
 export { ApiError };

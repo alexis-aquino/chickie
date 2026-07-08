@@ -1,64 +1,53 @@
-import { useMemo } from "react";
+import { useEffect, useState } from "react";
 import { useStore } from "@/hooks/use-store";
-import type { Category } from "@/types/inventory";
+import { fetchInventoryByCategoryChartUrl } from "@/lib/api-client";
 import { Card } from "@/components/ui/card";
 import { BarChart3 } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
 export function CategoryChart() {
   const { inventory } = useStore();
-  const data = useMemo(() => {
-    const map = new Map<Category, number>();
-    for (const item of inventory) {
-      const value = item.quantity * item.unitCost;
-      map.set(item.category, (map.get(item.category) ?? 0) + value);
-    }
-    return Array.from(map.entries()).map(([category, value]) => ({
-      category,
-      value: Math.round(value),
-    }));
+  const [chartUrl, setChartUrl] = useState<string | null>(null);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    let objectUrl: string | null = null;
+
+    fetchInventoryByCategoryChartUrl()
+      .then((url) => {
+        if (!active) {
+          URL.revokeObjectURL(url);
+          return;
+        }
+        objectUrl = url;
+        setChartUrl(url);
+        setError(false);
+      })
+      .catch(() => active && setError(true));
+
+    return () => {
+      active = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+    // Re-fetch whenever inventory changes so the server-rendered chart stays in sync.
   }, [inventory]);
 
   return (
     <Card className="p-5 gap-4">
       <div>
         <h3>Inventory Value by Category</h3>
-        <p className="text-sm text-muted-foreground">Estimated on-hand value (PHP)</p>
+        <p className="text-sm text-muted-foreground">Estimated on-hand value (PHP) — rendered by the Python backend</p>
       </div>
-      {data.length === 0 ? (
+      {error ? (
         <div className="h-64 flex flex-col items-center justify-center gap-2 text-center">
           <BarChart3 className="size-8 text-muted-foreground/40" aria-hidden="true" />
-          <p className="text-sm text-muted-foreground">
-            No inventory yet — add items on the Inventory tab to see value by category.
-          </p>
+          <p className="text-sm text-muted-foreground">Couldn&apos;t load the chart from the backend.</p>
         </div>
+      ) : chartUrl ? (
+        <img src={chartUrl} alt="Bar chart of inventory value by category" className="w-full h-64 object-contain" />
       ) : (
-        <div className="h-64">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-              <XAxis
-                dataKey="category"
-                tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
-                interval={0}
-                angle={-15}
-                textAnchor="end"
-                height={50}
-              />
-              <YAxis tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} />
-              <Tooltip
-                cursor={{ fill: "var(--accent)" }}
-                contentStyle={{
-                  background: "var(--popover)",
-                  border: "1px solid var(--border)",
-                  borderRadius: "8px",
-                  fontSize: "12px",
-                }}
-                formatter={(v: number) => [`₱${v.toLocaleString()}`, "Value"]}
-              />
-              <Bar dataKey="value" fill="var(--brand)" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+        <div className="h-64 flex items-center justify-center">
+          <div className="size-6 rounded-full border-2 border-muted-foreground/30 border-t-brand animate-spin" />
         </div>
       )}
     </Card>
