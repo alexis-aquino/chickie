@@ -364,7 +364,11 @@ export function ProfileDialog({ open, onOpenChange }: Props) {
           </TabsContent>
 
           {/* APPEARANCE */}
-          <TabsContent value="appearance" className="flex flex-col gap-5 mt-2">
+          <TabsContent
+            value="appearance"
+            className="flex flex-col gap-5 mt-2 rounded-xl p-4 transition-colors duration-300"
+            style={{ backgroundColor: `${accent}0d` }}
+          >
             <div className="flex flex-col gap-3">
               <Label>Dashboard Theme</Label>
               <div className="grid grid-cols-2 gap-3">

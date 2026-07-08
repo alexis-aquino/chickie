@@ -185,7 +185,7 @@ export function CustomerList() {
                     </SheetTitle>
                   </SheetHeader>
 
-                  <div className="flex flex-col gap-5 mt-4">
+                  <div className="flex flex-col gap-5 mt-4 px-4 pb-6">
                     <div className="grid grid-cols-2 gap-3">
                       {[
                         { icon: Phone, label: "Phone", val: customer.phone },
