@@ -2,7 +2,8 @@ import { supabase } from "@/lib/supabase";
 import type { InventoryItem, PurchaseRecord, PurchaseRecordDraft, Supplier } from "@/types/inventory";
 import type { Customer, LoyaltyTierConfig, Promotion } from "@/types/crm";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL;
+// Unset in production: the API is served from the same origin (/api rewrites).
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
 export interface StoreSnapshot {
   suppliers: Supplier[];
