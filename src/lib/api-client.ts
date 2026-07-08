@@ -1,9 +1,8 @@
 import { supabase } from "@/lib/supabase";
-import type { InventoryItem, PurchaseRecord, PurchaseRecordDraft, Supplier } from "@/types/inventory";
-import type { Customer, LoyaltyTierConfig, Promotion } from "@/types/crm";
+import type { InventoryItem, PurchaseRecord, Supplier } from "@/types/inventory";
+import type { Customer, Promotion } from "@/types/crm";
 
-// Unset in production: the API is served from the same origin (/api rewrites).
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
+const API_BASE = import.meta.env.VITE_API_BASE_URL;
 
 export interface StoreSnapshot {
   suppliers: Supplier[];
@@ -11,7 +10,6 @@ export interface StoreSnapshot {
   purchaseHistory: PurchaseRecord[];
   customers: Customer[];
   promotions: Promotion[];
-  loyaltyTiers: LoyaltyTierConfig[];
 }
 
 class ApiError extends Error {}
@@ -43,20 +41,12 @@ export function fetchStoreSnapshot(): Promise<StoreSnapshot> {
   return apiFetch<StoreSnapshot>("/api/store");
 }
 
-export function submitPurchaseRecords(records: PurchaseRecordDraft[]): Promise<PurchaseRecord[]> {
+export function submitPurchaseRecords(
+  records: Omit<PurchaseRecord, "id" | "delivered">[],
+): Promise<PurchaseRecord[]> {
   return apiFetch<PurchaseRecord[]>("/api/purchase-records", {
     method: "POST",
     body: JSON.stringify(records),
-  });
-}
-
-export function updateLoyaltyTier(
-  id: string,
-  patch: Omit<LoyaltyTierConfig, "id" | "tierName">,
-): Promise<LoyaltyTierConfig> {
-  return apiFetch<LoyaltyTierConfig>(`/api/loyalty-tiers/${id}`, {
-    method: "PATCH",
-    body: JSON.stringify(patch),
   });
 }
 

@@ -364,11 +364,7 @@ export function ProfileDialog({ open, onOpenChange }: Props) {
           </TabsContent>
 
           {/* APPEARANCE */}
-          <TabsContent
-            value="appearance"
-            className="flex flex-col gap-5 mt-2 rounded-xl p-4 -mx-1 transition-[background-color] duration-500"
-            style={{ backgroundColor: `${accent}12` }}
-          >
+          <TabsContent value="appearance" className="flex flex-col gap-5 mt-2">
             <div className="flex flex-col gap-3">
               <Label>Dashboard Theme</Label>
               <div className="grid grid-cols-2 gap-3">
@@ -382,9 +378,8 @@ export function ProfileDialog({ open, onOpenChange }: Props) {
                     }}
                     aria-pressed={theme === t.id}
                     className={`rounded-xl border-2 p-3 flex items-center gap-3 text-left transition-all ${
-                      theme === t.id ? "" : "border-border hover:border-muted-foreground/30"
+                      theme === t.id ? "border-brand bg-red-50/50" : "border-border hover:border-muted-foreground/30"
                     }`}
-                    style={theme === t.id ? { borderColor: t.accent, backgroundColor: `${t.accent}14` } : { backgroundColor: "var(--background)" }}
                   >
                     <div className={`size-8 rounded-full ${t.bg} shrink-0 ring-2 ring-offset-2 ${theme === t.id ? t.ring : "ring-transparent"}`} />
                     <span className="text-sm font-medium">{t.label}</span>

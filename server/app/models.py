@@ -74,25 +74,9 @@ class PurchaseRecord(Base):
     )
     date: Mapped[str] = mapped_column(String, nullable=False)
     expected_delivery: Mapped[str] = mapped_column(String, nullable=False)
-    actual_delivery: Mapped[str | None] = mapped_column(String, nullable=True)
     quantity: Mapped[float] = mapped_column(Numeric)
     unit_price: Mapped[float] = mapped_column(Numeric)
     delivered: Mapped[bool] = mapped_column(Boolean)
-    created_by: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("profiles.id"), nullable=True
-    )
-
-
-class LoyaltyTierConfig(Base):
-    __tablename__ = "loyalty_tiers"
-
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
-    organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id"))
-    tier_name: Mapped[str] = mapped_column(String, nullable=False)
-    min_points: Mapped[int] = mapped_column()
-    max_points: Mapped[int | None] = mapped_column(nullable=True)
-    points_per_peso: Mapped[float] = mapped_column(Numeric)
-    perks: Mapped[list[str]] = mapped_column(ARRAY(String))
 
 
 class Customer(Base):

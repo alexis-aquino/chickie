@@ -1,8 +1,8 @@
 import { createContext, useCallback, useEffect, useState, type ReactNode } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import * as api from "@/lib/api-client";
-import type { InventoryItem, PurchaseRecord, PurchaseRecordDraft, Supplier } from "@/types/inventory";
-import type { Customer, LoyaltyTierConfig, Promotion } from "@/types/crm";
+import type { InventoryItem, PurchaseRecord, Supplier } from "@/types/inventory";
+import type { Customer, Promotion } from "@/types/crm";
 
 export interface StoreContextValue {
   loading: boolean;
@@ -11,14 +11,12 @@ export interface StoreContextValue {
   purchaseHistory: PurchaseRecord[];
   customers: Customer[];
   promotions: Promotion[];
-  loyaltyTiers: LoyaltyTierConfig[];
-  submitOrder: (records: PurchaseRecordDraft[]) => Promise<void>;
+  submitOrder: (records: Omit<PurchaseRecord, "id" | "delivered">[]) => Promise<void>;
   markDelivered: (id: string) => Promise<void>;
   addInventoryItem: (item: Omit<InventoryItem, "id">) => Promise<string | null>;
   updateInventoryItem: (id: string, patch: Omit<InventoryItem, "id">) => Promise<string | null>;
   deleteInventoryItem: (id: string) => Promise<string | null>;
   activatePromotion: (id: string) => Promise<void>;
-  updateLoyaltyTier: (id: string, patch: Omit<LoyaltyTierConfig, "id" | "tierName">) => Promise<string | null>;
 }
 
 export const StoreContext = createContext<StoreContextValue | undefined>(undefined);
@@ -31,7 +29,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [purchaseHistory, setPurchaseHistory] = useState<PurchaseRecord[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [promotions, setPromotions] = useState<Promotion[]>([]);
-  const [loyaltyTiers, setLoyaltyTiers] = useState<LoyaltyTierConfig[]>([]);
 
   const load = useCallback(async () => {
     if (!user) {
@@ -40,7 +37,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setPurchaseHistory([]);
       setCustomers([]);
       setPromotions([]);
-      setLoyaltyTiers([]);
       setLoading(false);
       return;
     }
@@ -53,7 +49,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setPurchaseHistory(snapshot.purchaseHistory);
       setCustomers(snapshot.customers);
       setPromotions(snapshot.promotions);
-      setLoyaltyTiers(snapshot.loyaltyTiers);
     } catch (error) {
       console.error("Failed to load store data", error);
     } finally {
@@ -79,28 +74,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   };
 
   const markDelivered: StoreContextValue["markDelivered"] = async (id) => {
-    let updated: PurchaseRecord;
     try {
-      updated = await api.markPurchaseDelivered(id);
+      await api.markPurchaseDelivered(id);
     } catch (error) {
       console.error("Failed to mark delivered", error);
       return;
     }
-    setPurchaseHistory((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, delivered: true, actualDelivery: updated.actualDelivery } : r)),
-    );
-  };
-
-  const updateLoyaltyTier: StoreContextValue["updateLoyaltyTier"] = async (id, patch) => {
-    let updated: LoyaltyTierConfig;
-    try {
-      updated = await api.updateLoyaltyTier(id, patch);
-    } catch (error) {
-      console.error("Failed to update loyalty tier", error);
-      return error instanceof Error ? error.message : "Failed to update tier.";
-    }
-    setLoyaltyTiers((prev) => prev.map((t) => (t.id === id ? updated : t)));
-    return null;
+    setPurchaseHistory((prev) => prev.map((r) => (r.id === id ? { ...r, delivered: true } : r)));
   };
 
   const addInventoryItem: StoreContextValue["addInventoryItem"] = async (item) => {
@@ -163,14 +143,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         purchaseHistory,
         customers,
         promotions,
-        loyaltyTiers,
         submitOrder,
         markDelivered,
         addInventoryItem,
         updateInventoryItem,
         deleteInventoryItem,
         activatePromotion,
-        updateLoyaltyTier,
       }}
     >
       {children}
