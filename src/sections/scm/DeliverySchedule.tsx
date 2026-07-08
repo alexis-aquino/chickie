@@ -186,6 +186,12 @@ export function DeliverySchedule() {
                       </span>
                       <span className="text-muted-foreground/50">·</span>
                       <span>₱{(rec.quantity * rec.unitPrice).toLocaleString()}</span>
+                      {rec.createdByName && (
+                        <>
+                          <span className="text-muted-foreground/50">·</span>
+                          <span>Logged by {rec.createdByName}</span>
+                        </>
+                      )}
                     </div>
                   </div>
 
@@ -198,6 +204,12 @@ export function DeliverySchedule() {
                       <Truck className="size-3.5" aria-hidden="true" />
                       <span className="text-xs">Expected {formatDate(rec.expectedDelivery)}</span>
                     </div>
+                    {rec.delivered && rec.actualDelivery && (
+                      <div className="flex items-center gap-1.5 text-emerald-700">
+                        <PackageCheck className="size-3.5" aria-hidden="true" />
+                        <span className="text-xs">Arrived {formatDate(rec.actualDelivery)}</span>
+                      </div>
+                    )}
                   </div>
 
                   {isOwner && !rec.delivered && (

@@ -194,6 +194,7 @@ export function TransactionHistory() {
                 <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground">Total</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground whitespace-nowrap">Order Date</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground whitespace-nowrap">Est. Delivery</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground whitespace-nowrap">Logged By</th>
                 <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground">Status</th>
               </tr>
             </thead>
@@ -201,7 +202,7 @@ export function TransactionHistory() {
               {pageRows.length === 0
                 ? (
                   <tr>
-                    <td colSpan={9} className="text-center text-muted-foreground py-12">
+                    <td colSpan={10} className="text-center text-muted-foreground py-12">
                       No transactions match your filters.
                     </td>
                   </tr>
@@ -250,11 +251,19 @@ export function TransactionHistory() {
                           {fmtDate(rec.expectedDelivery)}
                         </div>
                       </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-muted-foreground text-sm">
+                        {rec.createdByName || "—"}
+                      </td>
                       <td className="px-4 py-3 text-center">
                         {rec.delivered ? (
-                          <Badge variant="outline" className="bg-emerald-50 border-emerald-300 text-emerald-700 gap-1 whitespace-nowrap">
-                            <CheckCircle2 className="size-3" aria-hidden="true" /> Delivered
-                          </Badge>
+                          <div className="flex flex-col items-center gap-0.5">
+                            <Badge variant="outline" className="bg-emerald-50 border-emerald-300 text-emerald-700 gap-1 whitespace-nowrap">
+                              <CheckCircle2 className="size-3" aria-hidden="true" /> Delivered
+                            </Badge>
+                            {rec.actualDelivery && (
+                              <span className="text-[10px] text-muted-foreground whitespace-nowrap">{fmtDate(rec.actualDelivery)}</span>
+                            )}
+                          </div>
                         ) : (
                           <Badge variant="outline" className="bg-amber-50 border-amber-300 text-amber-700 gap-1 whitespace-nowrap">
                             <Clock className="size-3" aria-hidden="true" /> Pending
@@ -275,7 +284,7 @@ export function TransactionHistory() {
                   <td className="px-4 py-3 text-right font-semibold tabular-nums">
                     ₱{pageRows.reduce((s, r) => s + r.quantity * r.unitPrice, 0).toLocaleString()}
                   </td>
-                  <td colSpan={3} />
+                  <td colSpan={4} />
                 </tr>
               </tfoot>
             )}

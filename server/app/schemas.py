@@ -47,9 +47,11 @@ class PurchaseRecord(CamelModel):
     supplier_id: str
     date: str
     expected_delivery: str
+    actual_delivery: str
     quantity: float
     unit_price: float
     delivered: bool
+    created_by_name: str
 
 
 class PurchaseRecordWrite(CamelModel):
@@ -111,9 +113,26 @@ class Promotion(CamelModel):
     reason: str
 
 
+class LoyaltyTierConfig(CamelModel):
+    id: str
+    tier_name: str
+    min_points: int
+    max_points: int | None
+    points_per_peso: float
+    perks: list[str]
+
+
+class LoyaltyTierWrite(CamelModel):
+    min_points: int
+    max_points: int | None
+    points_per_peso: float
+    perks: list[str]
+
+
 class StoreSnapshot(CamelModel):
     suppliers: list[Supplier]
     inventory: list[InventoryItem]
     purchase_history: list[PurchaseRecord]
     customers: list[Customer]
     promotions: list[Promotion]
+    loyalty_tiers: list[LoyaltyTierConfig]

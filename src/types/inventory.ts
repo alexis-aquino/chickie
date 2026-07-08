@@ -38,7 +38,17 @@ export interface PurchaseRecord {
   supplierId: string;
   date: string;
   expectedDelivery: string;
+  /** Set when the order is marked delivered; empty until then. */
+  actualDelivery: string;
   quantity: number;
   unitPrice: number;
   delivered: boolean;
+  /** Display name of the staff member who logged the order. */
+  createdByName: string;
 }
+
+/** Fields the client supplies when logging a new order line. */
+export type PurchaseRecordDraft = Pick<
+  PurchaseRecord,
+  "itemId" | "supplierId" | "date" | "expectedDelivery" | "quantity" | "unitPrice"
+>;

@@ -1,5 +1,15 @@
 export type LoyaltyTier = "Bronze" | "Silver" | "Gold";
 
+/** Org-configurable loyalty tier settings (DB-backed). */
+export interface LoyaltyTierConfig {
+  id: string;
+  tierName: LoyaltyTier;
+  minPoints: number;
+  maxPoints: number | null;
+  pointsPerPeso: number;
+  perks: string[];
+}
+
 export interface CustomerOrderItem {
   name: string;
   qty: number;

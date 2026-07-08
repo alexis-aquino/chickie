@@ -1,4 +1,5 @@
 import uuid
+from datetime import date
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -10,6 +11,18 @@ from app.auth import Principal, get_current_principal
 from app.db import get_db
 
 router = APIRouter(prefix="/api", tags=["store"])
+
+DEFAULT_LOYALTY_TIERS: list[tuple[str, int, int | None, float, list[str]]] = [
+    ("Bronze", 0, 499, 0.1, ["Birthday treat", "Early promo access"]),
+    ("Silver", 500, 1499, 0.15, ["Free upsize on combo", "Monthly exclusive deal", "Priority support"]),
+    (
+        "Gold",
+        1500,
+        None,
+        0.2,
+        ["Free item on every 5th order", "VIP-only promos", "Dedicated account manager", "Free delivery on large orders"],
+    ),
+]
 
 
 def _s(v: Any) -> str:
@@ -50,16 +63,29 @@ def _inventory_item(i: models.InventoryItem) -> schemas.InventoryItem:
     )
 
 
-def _purchase_record(p: models.PurchaseRecord) -> schemas.PurchaseRecord:
+def _purchase_record(p: models.PurchaseRecord, profile_names: dict[str, str] | None = None) -> schemas.PurchaseRecord:
     return schemas.PurchaseRecord(
         id=str(p.id),
         item_id=str(p.item_id),
         supplier_id=_s(p.supplier_id),
         date=_s(p.date),
         expected_delivery=_s(p.expected_delivery),
+        actual_delivery=_s(p.actual_delivery),
         quantity=_num(p.quantity),
         unit_price=_num(p.unit_price),
         delivered=bool(p.delivered),
+        created_by_name=(profile_names or {}).get(str(p.created_by), ""),
+    )
+
+
+def _loyalty_tier(t: models.LoyaltyTierConfig) -> schemas.LoyaltyTierConfig:
+    return schemas.LoyaltyTierConfig(
+        id=str(t.id),
+        tier_name=t.tier_name,
+        min_points=int(t.min_points),
+        max_points=int(t.max_points) if t.max_points is not None else None,
+        points_per_peso=_num(t.points_per_peso),
+        perks=list(t.perks or []),
     )
 
 
@@ -158,6 +184,34 @@ def get_store(
         .order_by(models.FeedbackRecord.date.desc())
     ).all()
     promotions = db.scalars(select(models.Promotion).where(models.Promotion.organization_id == org_id)).all()
+    loyalty_tiers = db.scalars(
+        select(models.LoyaltyTierConfig)
+        .where(models.LoyaltyTierConfig.organization_id == org_id)
+        .order_by(models.LoyaltyTierConfig.min_points)
+    ).all()
+    if not loyalty_tiers:
+        # Orgs created before the loyalty_tiers table (or fresh empty orgs)
+        # get the default ladder on first read.
+        for name, lo, hi, ppp, perks in DEFAULT_LOYALTY_TIERS:
+            db.add(
+                models.LoyaltyTierConfig(
+                    id=uuid.uuid4(),
+                    organization_id=org_id,
+                    tier_name=name,
+                    min_points=lo,
+                    max_points=hi,
+                    points_per_peso=ppp,
+                    perks=perks,
+                )
+            )
+        db.commit()
+        loyalty_tiers = db.scalars(
+            select(models.LoyaltyTierConfig)
+            .where(models.LoyaltyTierConfig.organization_id == org_id)
+            .order_by(models.LoyaltyTierConfig.min_points)
+        ).all()
+    profiles = db.scalars(select(models.Profile).where(models.Profile.organization_id == org_id)).all()
+    profile_names = {str(p.id): p.name for p in profiles}
 
     orders_by_customer: dict[str, list[models.CustomerOrder]] = {}
     for o in order_rows:
@@ -170,12 +224,13 @@ def get_store(
     return schemas.StoreSnapshot(
         suppliers=[_supplier(s) for s in suppliers],
         inventory=[_inventory_item(i) for i in inventory],
-        purchase_history=[_purchase_record(p) for p in purchase_history],
+        purchase_history=[_purchase_record(p, profile_names) for p in purchase_history],
         customers=[
             _customer(c, orders_by_customer.get(str(c.id), []), feedback_by_customer.get(str(c.id), []))
             for c in customer_rows
         ],
         promotions=[_promotion(p) for p in promotions],
+        loyalty_tiers=[_loyalty_tier(t) for t in loyalty_tiers],
     )
 
 
@@ -199,6 +254,7 @@ def submit_purchase_records(
             quantity=r.quantity,
             unit_price=r.unit_price,
             delivered=False,
+            created_by=uuid.UUID(principal.user_id),
         )
         db.add(row)
         inserted.append(row)
@@ -225,7 +281,9 @@ def submit_purchase_records(
             item.supplier_id = agg["supplier_id"]
 
     db.commit()
-    return [_purchase_record(r) for r in inserted]
+    creator = db.get(models.Profile, uuid.UUID(principal.user_id))
+    names = {principal.user_id: creator.name if creator else ""}
+    return [_purchase_record(r, names) for r in inserted]
 
 
 @router.patch("/purchase-records/{record_id}/deliver", response_model=schemas.PurchaseRecord)
@@ -238,6 +296,7 @@ def mark_delivered(
     if row is None or str(row.organization_id) != principal.organization_id:
         raise HTTPException(status_code=404, detail="Purchase record not found")
     row.delivered = True
+    row.actual_delivery = date.today().isoformat()
     db.commit()
     return _purchase_record(row)
 
@@ -300,6 +359,28 @@ def delete_inventory_item(
     # Deleting an item cascades to its purchase records via the existing DB FK.
     db.delete(row)
     db.commit()
+
+
+@router.patch("/loyalty-tiers/{tier_id}", response_model=schemas.LoyaltyTierConfig)
+def update_loyalty_tier(
+    tier_id: str,
+    patch: schemas.LoyaltyTierWrite,
+    principal: Principal = Depends(get_current_principal),
+    db: Session = Depends(get_db),
+) -> schemas.LoyaltyTierConfig:
+    if principal.role != "owner":
+        raise HTTPException(status_code=403, detail="Only the owner can edit loyalty tiers")
+
+    row = db.get(models.LoyaltyTierConfig, _parse_uuid(tier_id, "id"))
+    if row is None or str(row.organization_id) != principal.organization_id:
+        raise HTTPException(status_code=404, detail="Loyalty tier not found")
+
+    row.min_points = patch.min_points
+    row.max_points = patch.max_points
+    row.points_per_peso = patch.points_per_peso
+    row.perks = patch.perks
+    db.commit()
+    return _loyalty_tier(row)
 
 
 @router.patch("/promotions/{promotion_id}/activate", response_model=schemas.Promotion)

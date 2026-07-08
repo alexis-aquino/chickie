@@ -18,7 +18,7 @@ import { Search, ShoppingBag, Phone, Mail, Calendar, ChevronRight, Award, Messag
 type TierFilter = LoyaltyTier | "All";
 
 export function CustomerList() {
-  const { customers } = useStore();
+  const { customers, loyaltyTiers } = useStore();
   const [query, setQuery] = useState("");
   const [tier, setTier] = useState<TierFilter>("All");
   const [selected, setSelected] = useState<string | null>(null);
@@ -162,7 +162,9 @@ export function CustomerList() {
               const cfg = TIER_CONFIG[customer.tier];
               const spent = totalSpent(customer);
               const nextTier = customer.tier === "Bronze" ? "Silver" : customer.tier === "Silver" ? "Gold" : null;
-              const nextThreshold = nextTier ? TIER_CONFIG[nextTier].min : null;
+              const nextThreshold = nextTier
+                ? loyaltyTiers.find((t) => t.tierName === nextTier)?.minPoints ?? TIER_CONFIG[nextTier].min
+                : null;
               const ptsToNext = nextThreshold ? nextThreshold - customer.loyaltyPoints : 0;
               return (
                 <>
@@ -185,7 +187,7 @@ export function CustomerList() {
                     </SheetTitle>
                   </SheetHeader>
 
-                  <div className="flex flex-col gap-5 mt-4">
+                  <div className="flex flex-col gap-5 mt-4 px-4 pb-6">
                     <div className="grid grid-cols-2 gap-3">
                       {[
                         { icon: Phone, label: "Phone", val: customer.phone },

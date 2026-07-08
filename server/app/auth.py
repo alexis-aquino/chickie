@@ -16,6 +16,7 @@ bearer_scheme = HTTPBearer(auto_error=False)
 class Principal:
     user_id: str
     organization_id: str
+    role: str
 
 
 def get_current_principal(
@@ -43,4 +44,4 @@ def get_current_principal(
     if profile is None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No profile for this user")
 
-    return Principal(user_id=str(profile.id), organization_id=str(profile.organization_id))
+    return Principal(user_id=str(profile.id), organization_id=str(profile.organization_id), role=profile.role)
