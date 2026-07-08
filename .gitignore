@@ -1,9 +1,3 @@
-node_modules
-dist
-dist-ssr
-*.local
-*.tsbuildinfo
-
 .env
 .env.*
 !.env.example
@@ -12,8 +6,6 @@ dist-ssr
 !.vscode/extensions.json
 
 .DS_Store
-
-.vercel
 
 __pycache__/
 *.pyc
