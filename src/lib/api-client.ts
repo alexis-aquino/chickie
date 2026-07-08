@@ -2,7 +2,7 @@ import { supabase } from "@/lib/supabase";
 import type { InventoryItem, PurchaseRecord, Supplier } from "@/types/inventory";
 import type { Customer, Promotion } from "@/types/crm";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL;
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
 export interface StoreSnapshot {
   suppliers: Supplier[];
