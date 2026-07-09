@@ -1,7 +1,7 @@
 import { createContext, useCallback, useEffect, useState, type ReactNode } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import * as api from "@/lib/api-client";
-import type { InventoryItem, PurchaseRecord, Supplier } from "@/types/inventory";
+import type { InventoryItem, NewSupplier, PurchaseRecord, Supplier } from "@/types/inventory";
 import type { Customer, Promotion } from "@/types/crm";
 
 export interface StoreContextValue {
@@ -13,6 +13,7 @@ export interface StoreContextValue {
   promotions: Promotion[];
   submitOrder: (records: Omit<PurchaseRecord, "id" | "delivered">[]) => Promise<void>;
   markDelivered: (id: string) => Promise<void>;
+  addSupplier: (supplier: NewSupplier) => Promise<string | null>;
   addInventoryItem: (item: Omit<InventoryItem, "id">) => Promise<string | null>;
   updateInventoryItem: (id: string, patch: Omit<InventoryItem, "id">) => Promise<string | null>;
   deleteInventoryItem: (id: string) => Promise<string | null>;
@@ -80,7 +81,39 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       console.error("Failed to mark delivered", error);
       return;
     }
+    const record = purchaseHistory.find((r) => r.id === id);
     setPurchaseHistory((prev) => prev.map((r) => (r.id === id ? { ...r, delivered: true } : r)));
+    // Receiving a delivery is what puts stock on the shelf — mirror the
+    // backend's bump so the Inventory tab reflects it without a refetch.
+    if (record && !record.delivered) {
+      setInventory((prev) =>
+        prev.map((i) =>
+          i.id === record.itemId
+            ? {
+                ...i,
+                quantity: i.quantity + record.quantity,
+                unitCost: record.unitPrice,
+                supplierId: record.supplierId || i.supplierId,
+              }
+            : i,
+        ),
+      );
+    }
+  };
+
+  const addSupplier: StoreContextValue["addSupplier"] = async (supplier) => {
+    if (!user) return "Not signed in.";
+
+    let created: Supplier;
+    try {
+      created = await api.createSupplier(supplier);
+    } catch (error) {
+      console.error("Failed to add supplier", error);
+      return error instanceof Error ? error.message : "Failed to add supplier.";
+    }
+
+    setSuppliers((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
+    return null;
   };
 
   const addInventoryItem: StoreContextValue["addInventoryItem"] = async (item) => {
@@ -145,6 +178,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         promotions,
         submitOrder,
         markDelivered,
+        addSupplier,
         addInventoryItem,
         updateInventoryItem,
         deleteInventoryItem,

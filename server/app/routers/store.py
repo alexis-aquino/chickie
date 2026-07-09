@@ -1,4 +1,5 @@
 import uuid
+from datetime import date
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -60,6 +61,7 @@ def _purchase_record(p: models.PurchaseRecord) -> schemas.PurchaseRecord:
         quantity=_num(p.quantity),
         unit_price=_num(p.unit_price),
         delivered=bool(p.delivered),
+        payment_method=p.payment_method or "Cash",
     )
 
 
@@ -110,7 +112,7 @@ def _promotion(p: models.Promotion) -> schemas.Promotion:
         linked_inventory_item_id=_s(p.linked_inventory_item_id),
         linked_menu_items=list(p.linked_menu_items or []),
         target_tiers=list(p.target_tiers or []),
-        target_customer_ids=list(p.target_customer_ids or []),
+        target_customer_ids=[str(cid) for cid in (p.target_customer_ids or [])],
         expires_on=_s(p.expires_on),
         status=p.status,
         reason=p.reason,
@@ -194,36 +196,18 @@ def submit_purchase_records(
             organization_id=org_id,
             item_id=_parse_uuid(r.item_id, "itemId"),
             supplier_id=_parse_uuid(r.supplier_id, "supplierId") if r.supplier_id else None,
-            date=r.date,
-            expected_delivery=r.expected_delivery,
+            date=date.fromisoformat(r.date),
+            expected_delivery=date.fromisoformat(r.expected_delivery),
             quantity=r.quantity,
             unit_price=r.unit_price,
             delivered=False,
+            payment_method=r.payment_method,
         )
         db.add(row)
         inserted.append(row)
-    db.flush()
 
-    # Mirror the "latest order updates on-hand stock" behavior: aggregate the
-    # quantity delivered per item across all lines just inserted, then bump
-    # each affected inventory item's stock, cost, and supplier in one go.
-    by_item: dict[uuid.UUID, dict[str, Any]] = {}
-    for r in inserted:
-        agg = by_item.setdefault(r.item_id, {"qty": 0.0, "price": r.unit_price, "supplier_id": r.supplier_id})
-        agg["qty"] += float(r.quantity)
-        agg["price"] = r.unit_price
-        if r.supplier_id is not None:
-            agg["supplier_id"] = r.supplier_id
-
-    for item_id, agg in by_item.items():
-        item = db.get(models.InventoryItem, item_id)
-        if item is None or str(item.organization_id) != org_id:
-            continue
-        item.quantity = float(item.quantity) + agg["qty"]
-        item.unit_cost = agg["price"]
-        if agg["supplier_id"] is not None:
-            item.supplier_id = agg["supplier_id"]
-
+    # Stock is NOT bumped here anymore — on-hand quantities only change once
+    # the delivery is confirmed via the /deliver endpoint below.
     db.commit()
     return [_purchase_record(r) for r in inserted]
 
@@ -237,9 +221,51 @@ def mark_delivered(
     row = db.get(models.PurchaseRecord, _parse_uuid(record_id, "id"))
     if row is None or str(row.organization_id) != principal.organization_id:
         raise HTTPException(status_code=404, detail="Purchase record not found")
+    if row.delivered:
+        return _purchase_record(row)
+
     row.delivered = True
+    row.actual_delivery = date.today()
+
+    # Receiving the delivery is what actually puts stock on the shelf: bump
+    # the item's on-hand quantity and remember the latest cost/supplier.
+    item = db.get(models.InventoryItem, row.item_id)
+    if item is not None and str(item.organization_id) == principal.organization_id:
+        item.quantity = float(item.quantity) + float(row.quantity)
+        item.unit_cost = row.unit_price
+        if row.supplier_id is not None:
+            item.supplier_id = row.supplier_id
+
+    if row.supplier_id is not None:
+        supplier = db.get(models.Supplier, row.supplier_id)
+        if supplier is not None and str(supplier.organization_id) == principal.organization_id:
+            supplier.last_delivery = date.today()
+
     db.commit()
     return _purchase_record(row)
+
+
+@router.post("/suppliers", response_model=schemas.Supplier)
+def create_supplier(
+    supplier: schemas.SupplierWrite,
+    principal: Principal = Depends(get_current_principal),
+    db: Session = Depends(get_db),
+) -> schemas.Supplier:
+    row = models.Supplier(
+        id=uuid.uuid4(),
+        organization_id=principal.organization_id,
+        name=supplier.name,
+        contact=supplier.contact,
+        phone=supplier.phone,
+        categories=supplier.categories,
+        rating=0,
+        on_time_rate=0,
+        status=supplier.status,
+        last_delivery=None,
+    )
+    db.add(row)
+    db.commit()
+    return _supplier(row)
 
 
 @router.post("/inventory-items", response_model=schemas.InventoryItem)

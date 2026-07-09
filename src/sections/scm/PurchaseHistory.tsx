@@ -50,12 +50,19 @@ export function PurchaseHistory() {
   }, [purchaseHistory]);
 
   const filteredItems = useMemo(() => {
-    return inventory.filter((item) => {
-      const matchesQuery = item.name.toLowerCase().includes(query.toLowerCase());
-      const matchesCategory = category === "All" || item.category === category;
-      return matchesQuery && matchesCategory;
-    });
-  }, [inventory, query, category]);
+    return inventory
+      .filter((item) => {
+        const matchesQuery = item.name.toLowerCase().includes(query.toLowerCase());
+        const matchesCategory = category === "All" || item.category === category;
+        return matchesQuery && matchesCategory;
+      })
+      // Most recently purchased items first (items never ordered sink to the bottom).
+      .sort((a, b) => {
+        const latestA = itemPurchases.get(a.id)?.[0]?.date ?? "";
+        const latestB = itemPurchases.get(b.id)?.[0]?.date ?? "";
+        return latestB.localeCompare(latestA);
+      });
+  }, [inventory, query, category, itemPurchases]);
 
   const totalSpend = useMemo(() => {
     return purchaseHistory.reduce((sum, r) => sum + r.quantity * r.unitPrice, 0);

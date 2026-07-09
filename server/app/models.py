@@ -1,6 +1,7 @@
+import datetime
 import uuid
 
-from sqlalchemy import ARRAY, Boolean, ForeignKey, Numeric, String, Text
+from sqlalchemy import ARRAY, Boolean, Date, ForeignKey, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, TIMESTAMP, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -42,7 +43,7 @@ class Supplier(Base):
     rating: Mapped[float] = mapped_column(Numeric)
     on_time_rate: Mapped[float] = mapped_column(Numeric)
     status: Mapped[str] = mapped_column(String)
-    last_delivery: Mapped[str | None] = mapped_column(String, nullable=True)
+    last_delivery: Mapped[datetime.date | None] = mapped_column(Date, nullable=True)
 
 
 class InventoryItem(Base):
@@ -72,11 +73,13 @@ class PurchaseRecord(Base):
     supplier_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("suppliers.id"), nullable=True
     )
-    date: Mapped[str] = mapped_column(String, nullable=False)
-    expected_delivery: Mapped[str] = mapped_column(String, nullable=False)
+    date: Mapped[datetime.date] = mapped_column(Date, nullable=False)
+    expected_delivery: Mapped[datetime.date] = mapped_column(Date, nullable=False)
     quantity: Mapped[float] = mapped_column(Numeric)
     unit_price: Mapped[float] = mapped_column(Numeric)
     delivered: Mapped[bool] = mapped_column(Boolean)
+    payment_method: Mapped[str] = mapped_column(String, default="Cash")
+    actual_delivery: Mapped[datetime.date | None] = mapped_column(Date, nullable=True)
 
 
 class Customer(Base):
@@ -87,7 +90,7 @@ class Customer(Base):
     name: Mapped[str] = mapped_column(String, nullable=False)
     email: Mapped[str] = mapped_column(String)
     phone: Mapped[str] = mapped_column(String)
-    join_date: Mapped[str] = mapped_column(String)
+    join_date: Mapped[datetime.date] = mapped_column(Date)
     loyalty_points: Mapped[int] = mapped_column()
     tier: Mapped[str] = mapped_column(String)
     favorite_items: Mapped[list[str]] = mapped_column(ARRAY(String))
@@ -100,7 +103,7 @@ class CustomerOrder(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
     organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id"))
     customer_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("customers.id"))
-    date: Mapped[str] = mapped_column(String, nullable=False)
+    date: Mapped[datetime.date] = mapped_column(Date, nullable=False)
     items: Mapped[dict] = mapped_column(JSONB)
     total: Mapped[float] = mapped_column(Numeric)
     status: Mapped[str] = mapped_column(String)
@@ -115,7 +118,7 @@ class FeedbackRecord(Base):
     order_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("customer_orders.id"), nullable=True
     )
-    date: Mapped[str] = mapped_column(String, nullable=False)
+    date: Mapped[datetime.date] = mapped_column(Date, nullable=False)
     rating: Mapped[int] = mapped_column()
     comment: Mapped[str] = mapped_column(Text)
 

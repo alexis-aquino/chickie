@@ -1,5 +1,6 @@
 import { Navigate, useNavigate, useParams } from "react-router";
 import { useStore } from "@/hooks/use-store";
+import { useAuth } from "@/hooks/use-auth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CRMDashboard } from "@/sections/crm/CRMDashboard";
 import { CustomerList } from "@/sections/crm/CustomerList";
@@ -13,8 +14,14 @@ const VALID_TABS = ["dashboard", "customers", "loyalty", "feedback", "promotions
 export function CrmPage() {
   const { tab } = useParams<{ tab: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { promotions } = useStore();
   const activePromos = promotions.filter((p) => p.status === "Active").length;
+
+  // Supplier accounts only get the SCM side of the dashboard.
+  if (user?.role === "supplier") {
+    return <Navigate to="/dashboard/scm/deliveries" replace />;
+  }
 
   if (!tab || !VALID_TABS.includes(tab)) {
     return <Navigate to="/dashboard/crm/dashboard" replace />;

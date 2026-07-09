@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import logo from "@/assets/logo.png";
 import { GoogleIcon } from "./GoogleIcon";
-import { Crown, UserCog, Eye, EyeOff, ArrowRight, MailCheck } from "lucide-react";
+import { Crown, UserCog, Truck, Eye, EyeOff, ArrowRight, MailCheck } from "lucide-react";
 import { toast } from "sonner";
 
 type AuthMode = "signin" | "signup";
@@ -152,22 +152,28 @@ export function AuthCard() {
       <div className="px-7 pb-7 flex flex-col gap-4">
         {mode === "signup" && (
           <div className="flex rounded-xl overflow-hidden border" role="radiogroup" aria-label="Account role">
-            {(["owner", "staff"] as Role[]).map((r) => (
+            {(
+              [
+                { id: "owner" as Role, label: "Owner", icon: Crown },
+                { id: "staff" as Role, label: "Staff", icon: UserCog },
+                { id: "supplier" as Role, label: "Supplier", icon: Truck },
+              ]
+            ).map((r) => (
               <button
-                key={r}
+                key={r.id}
                 type="button"
                 role="radio"
-                aria-checked={role === r}
+                aria-checked={role === r.id}
                 onClick={() => {
-                  setRole(r);
+                  setRole(r.id);
                   setError(null);
                 }}
                 className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium transition-colors ${
-                  role === r ? "bg-brand text-white" : "bg-white text-muted-foreground hover:bg-muted/50"
+                  role === r.id ? "bg-brand text-white" : "bg-white text-muted-foreground hover:bg-muted/50"
                 }`}
               >
-                {r === "owner" ? <Crown className="size-3.5" aria-hidden="true" /> : <UserCog className="size-3.5" aria-hidden="true" />}
-                {r === "owner" ? "Owner" : "Staff"}
+                <r.icon className="size-3.5" aria-hidden="true" />
+                {r.label}
               </button>
             ))}
           </div>
@@ -212,10 +218,10 @@ export function AuthCard() {
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="auth-business">Business Name</Label>
+                <Label htmlFor="auth-business">{role === "supplier" ? "Company Name" : "Business Name"}</Label>
                 <Input
                   id="auth-business"
-                  placeholder="Chickie — Quezon City Branch"
+                  placeholder={role === "supplier" ? "Magnolia Poultry Supply" : "Chickie — Quezon City Branch"}
                   value={businessName}
                   onChange={(e) => setBusinessName(e.target.value)}
                   autoComplete="organization"

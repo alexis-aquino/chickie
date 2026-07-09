@@ -32,6 +32,8 @@ export interface InventoryItem {
 
 export type StockStatus = "Critical" | "Low" | "Healthy";
 
+export type PaymentMethod = "Cash" | "GCash" | "Card" | "QR Ph";
+
 export interface PurchaseRecord {
   id: string;
   itemId: string;
@@ -41,4 +43,7 @@ export interface PurchaseRecord {
   quantity: number;
   unitPrice: number;
   delivered: boolean;
+  paymentMethod: string;
 }
+
+export type NewSupplier = Pick<Supplier, "name" | "contact" | "phone" | "categories" | "status">;

@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase";
-import type { InventoryItem, PurchaseRecord, Supplier } from "@/types/inventory";
+import type { InventoryItem, NewSupplier, PurchaseRecord, Supplier } from "@/types/inventory";
 import type { Customer, Promotion } from "@/types/crm";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL;
@@ -52,6 +52,13 @@ export function submitPurchaseRecords(
 
 export function markPurchaseDelivered(id: string): Promise<PurchaseRecord> {
   return apiFetch<PurchaseRecord>(`/api/purchase-records/${id}/deliver`, { method: "PATCH" });
+}
+
+export function createSupplier(supplier: NewSupplier): Promise<Supplier> {
+  return apiFetch<Supplier>("/api/suppliers", {
+    method: "POST",
+    body: JSON.stringify(supplier),
+  });
 }
 
 export function createInventoryItem(item: Omit<InventoryItem, "id">): Promise<InventoryItem> {

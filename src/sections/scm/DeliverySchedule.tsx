@@ -23,7 +23,8 @@ function daysUntil(iso: string) {
 export function DeliverySchedule() {
   const { purchaseHistory, markDelivered, suppliers, inventory: allItems } = useStore();
   const { user } = useAuth();
-  const isOwner = user?.role === "owner";
+  // Owners receive deliveries; supplier accounts confirm the ones they fulfil.
+  const canMarkDelivered = user?.role === "owner" || user?.role === "supplier";
 
   const [filter, setFilter] = useState<Filter>("pending");
 
@@ -32,7 +33,9 @@ export function DeliverySchedule() {
   const rows = useMemo(() => {
     return purchaseHistory
       .filter((r) => {
-        if (filter === "pending") return !r.delivered;
+        // "Pending" and "Overdue" are disjoint: overdue orders only appear
+        // under their own filter (and in "All Orders").
+        if (filter === "pending") return !r.delivered && r.expectedDelivery >= today;
         if (filter === "delivered") return r.delivered;
         if (filter === "overdue") return !r.delivered && r.expectedDelivery < today;
         return true;
@@ -41,7 +44,7 @@ export function DeliverySchedule() {
   }, [purchaseHistory, filter, today]);
 
   const counts = useMemo(() => {
-    const pending = purchaseHistory.filter((r) => !r.delivered).length;
+    const pending = purchaseHistory.filter((r) => !r.delivered && r.expectedDelivery >= today).length;
     const overdue = purchaseHistory.filter((r) => !r.delivered && r.expectedDelivery < today).length;
     const delivered = purchaseHistory.filter((r) => r.delivered).length;
     return { pending, overdue, delivered, total: purchaseHistory.length };
@@ -50,6 +53,7 @@ export function DeliverySchedule() {
   const handleMark = (id: string, itemName: string) => {
     markDelivered(id);
     toast.success(`${itemName} marked as delivered`, {
+      description: "On-hand inventory has been updated.",
       icon: <PackageCheck className="size-4" />,
     });
   };
@@ -200,7 +204,7 @@ export function DeliverySchedule() {
                     </div>
                   </div>
 
-                  {isOwner && !rec.delivered && (
+                  {canMarkDelivered && !rec.delivered && (
                     <Button
                       size="sm"
                       variant="outline"

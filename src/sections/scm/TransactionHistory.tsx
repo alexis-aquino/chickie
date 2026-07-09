@@ -139,7 +139,7 @@ export function TransactionHistory() {
           <div className="flex items-center gap-2">
             <FileText className="size-4 text-brand" aria-hidden="true" />
             <div>
-              <h3>Transaction History</h3>
+              <h3>Order History</h3>
               <p className="text-sm text-muted-foreground">
                 {rows.length} transaction{rows.length !== 1 ? "s" : ""} · ₱{Math.round(grandTotal).toLocaleString()} total
               </p>
@@ -192,6 +192,7 @@ export function TransactionHistory() {
                 <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground">Qty</th>
                 <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground">Unit Price</th>
                 <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground">Total</th>
+                <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground">Payment</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground whitespace-nowrap">Order Date</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground whitespace-nowrap">Est. Delivery</th>
                 <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground">Status</th>
@@ -201,7 +202,7 @@ export function TransactionHistory() {
               {pageRows.length === 0
                 ? (
                   <tr>
-                    <td colSpan={9} className="text-center text-muted-foreground py-12">
+                    <td colSpan={10} className="text-center text-muted-foreground py-12">
                       No transactions match your filters.
                     </td>
                   </tr>
@@ -238,6 +239,11 @@ export function TransactionHistory() {
                       </td>
                       <td className="px-4 py-3 text-right tabular-nums">₱{rec.unitPrice.toLocaleString()}</td>
                       <td className="px-4 py-3 text-right tabular-nums font-semibold">₱{total.toLocaleString()}</td>
+                      <td className="px-4 py-3 text-center">
+                        <Badge variant="outline" className="whitespace-nowrap text-xs">
+                          {rec.paymentMethod || "Cash"}
+                        </Badge>
+                      </td>
                       <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
                         <div className="flex items-center gap-1.5">
                           <CalendarDays className="size-3.5 shrink-0" aria-hidden="true" />
@@ -275,7 +281,7 @@ export function TransactionHistory() {
                   <td className="px-4 py-3 text-right font-semibold tabular-nums">
                     ₱{pageRows.reduce((s, r) => s + r.quantity * r.unitPrice, 0).toLocaleString()}
                   </td>
-                  <td colSpan={3} />
+                  <td colSpan={4} />
                 </tr>
               </tfoot>
             )}

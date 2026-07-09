@@ -30,6 +30,14 @@ class InventoryItem(CamelModel):
     unit_cost: float
 
 
+class SupplierWrite(CamelModel):
+    name: str
+    contact: str
+    phone: str
+    categories: list[str]
+    status: str = "Active"
+
+
 class InventoryItemWrite(CamelModel):
     name: str
     category: str
@@ -50,6 +58,7 @@ class PurchaseRecord(CamelModel):
     quantity: float
     unit_price: float
     delivered: bool
+    payment_method: str
 
 
 class PurchaseRecordWrite(CamelModel):
@@ -59,6 +68,7 @@ class PurchaseRecordWrite(CamelModel):
     expected_delivery: str
     quantity: float
     unit_price: float
+    payment_method: str = "Cash"
 
 
 class CustomerOrderItem(CamelModel):

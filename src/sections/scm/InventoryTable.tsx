@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useStore } from "@/hooks/use-store";
 import { useAuth } from "@/hooks/use-auth";
 import { stockStatus, supplierName } from "@/utils/inventory";
-import type { Category, InventoryItem, StockStatus } from "@/types/inventory";
+import type { Category, InventoryItem, PaymentMethod, StockStatus } from "@/types/inventory";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { InventoryItemDialog } from "./InventoryItemDialog";
+import { PaymentDialog } from "./PaymentDialog";
 import {
   Search,
   Package,
@@ -20,6 +21,7 @@ import {
   Plus,
   Pencil,
   Trash2,
+  ShoppingCart,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -57,12 +59,38 @@ const PROGRESS_COLOR: Record<StockStatus, string> = {
 type StatusFilter = "All" | StockStatus;
 
 export function InventoryTable() {
-  const { inventory, suppliers, deleteInventoryItem } = useStore();
+  const { inventory, suppliers, deleteInventoryItem, submitOrder } = useStore();
   const { user } = useAuth();
   const isOwner = user?.role === "owner";
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
+  const [reorderItem, setReorderItem] = useState<InventoryItem | null>(null);
+
+  // One-click reorder tops the item back up to its PAR level.
+  const reorderQty = (item: InventoryItem) => Math.max(Math.round((item.par - item.quantity) * 100) / 100, 1);
+
+  const handleReorderPaid = async (method: PaymentMethod) => {
+    if (!reorderItem) return;
+    const qty = reorderQty(reorderItem);
+    const today = new Date().toISOString().slice(0, 10);
+    const expected = new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
+    await submitOrder([
+      {
+        itemId: reorderItem.id,
+        supplierId: reorderItem.supplierId,
+        date: today,
+        expectedDelivery: expected,
+        quantity: qty,
+        unitPrice: reorderItem.unitCost,
+        paymentMethod: method,
+      },
+    ]);
+    toast.success(`Reorder placed for ${reorderItem.name}`, {
+      description: `${qty} ${reorderItem.unit} via ${method} · arriving ${new Date(expected).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`,
+    });
+    setReorderItem(null);
+  };
 
   const openAddDialog = () => {
     setEditingItem(null);
@@ -301,6 +329,17 @@ export function InventoryTable() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
+                        {isOwner && status === "Critical" && (
+                          <Button
+                            size="sm"
+                            className="h-7 gap-1 bg-brand hover:bg-brand-dark text-white text-xs px-2"
+                            onClick={() => setReorderItem(item)}
+                            aria-label={`Reorder ${item.name}`}
+                          >
+                            <ShoppingCart className="size-3" aria-hidden="true" />
+                            Reorder
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="icon"
@@ -330,6 +369,16 @@ export function InventoryTable() {
       </Card>
 
       <InventoryItemDialog open={dialogOpen} onOpenChange={setDialogOpen} item={editingItem} />
+
+      {reorderItem && (
+        <PaymentDialog
+          open
+          onOpenChange={(v) => !v && setReorderItem(null)}
+          total={reorderQty(reorderItem) * reorderItem.unitCost}
+          summary={`Reorder ${reorderItem.name} · ${reorderQty(reorderItem)} ${reorderItem.unit} (top up to PAR ${reorderItem.par})`}
+          onConfirm={handleReorderPaid}
+        />
+      )}
     </div>
   );
 }

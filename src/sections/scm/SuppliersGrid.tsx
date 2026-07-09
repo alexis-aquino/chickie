@@ -1,18 +1,28 @@
+import { useState } from "react";
 import { useStore } from "@/hooks/use-store";
 import { initials, formatDate } from "@/utils/format";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Star, Phone, Truck, Package } from "lucide-react";
+import { AddSupplierDialog } from "./AddSupplierDialog";
+import { Star, Phone, Truck, Package, Plus } from "lucide-react";
 
 export function SuppliersGrid() {
   const { inventory, suppliers } = useStore();
+  const [addOpen, setAddOpen] = useState(false);
 
   return (
     <Card className="p-5 gap-4">
-      <div>
-        <h3>Suppliers</h3>
-        <p className="text-sm text-muted-foreground">{suppliers.length} vendors supplying your kitchen</p>
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h3>Suppliers</h3>
+          <p className="text-sm text-muted-foreground">{suppliers.length} vendors supplying your kitchen</p>
+        </div>
+        <Button size="sm" className="bg-brand hover:bg-brand-dark text-white gap-1.5" onClick={() => setAddOpen(true)}>
+          <Plus className="size-4" aria-hidden="true" />
+          Add Supplier
+        </Button>
       </div>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {suppliers.map((s) => {
@@ -67,6 +77,8 @@ export function SuppliersGrid() {
           );
         })}
       </div>
+
+      <AddSupplierDialog open={addOpen} onOpenChange={setAddOpen} />
     </Card>
   );
 }

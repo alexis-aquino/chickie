@@ -17,6 +17,7 @@ export function DashboardLayout() {
   const { loading: storeLoading } = useStore();
   const location = useLocation();
   const isOwner = user?.role === "owner";
+  const isSupplier = user?.role === "supplier";
   const module: "scm" | "crm" = location.pathname.startsWith("/dashboard/crm") ? "crm" : "scm";
 
   const [orderOpen, setOrderOpen] = useState(false);
@@ -61,7 +62,8 @@ export function DashboardLayout() {
             </div>
           </Link>
 
-          {/* Module switcher — centre */}
+          {/* Module switcher — centre (suppliers only get the SCM side) */}
+          {!isSupplier && (
           <nav aria-label="Dashboard module" className="flex items-center gap-1 rounded-xl border bg-muted p-1 shrink-0">
             <NavLink
               to="/dashboard/scm/inventory"
@@ -90,6 +92,7 @@ export function DashboardLayout() {
               <span className="hidden sm:inline">CRM</span>
             </NavLink>
           </nav>
+          )}
 
           {/* Right side */}
           <div className="flex items-center gap-3">

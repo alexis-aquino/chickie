@@ -20,8 +20,11 @@ const CategoryChart = lazy(() =>
   import("@/sections/scm/CategoryChart").then((m) => ({ default: m.CategoryChart })),
 );
 
-const OWNER_ONLY_TABS = new Set(["transactions", "analytics"]);
-const VALID_TABS = ["inventory", "suppliers", "deliveries", "purchases", "transactions", "analytics"];
+const OWNER_ONLY_TABS = new Set(["history", "analytics"]);
+const VALID_TABS = ["inventory", "suppliers", "purchases", "deliveries", "history", "analytics"];
+// Supplier accounts only manage their side of the pipeline: incoming
+// purchase orders and the deliveries they need to fulfil.
+const SUPPLIER_TABS = new Set(["purchases", "deliveries"]);
 
 export function ScmPage() {
   const { tab } = useParams<{ tab: string }>();
@@ -29,6 +32,7 @@ export function ScmPage() {
   const { user } = useAuth();
   const { inventory, suppliers } = useStore();
   const isOwner = user?.role === "owner";
+  const isSupplier = user?.role === "supplier";
 
   const stats = useMemo(() => {
     const totalValue = inventory.reduce((sum, i) => sum + i.quantity * i.unitCost, 0);
@@ -38,6 +42,12 @@ export function ScmPage() {
     return { totalValue, reorder, low, activeSuppliers };
   }, [inventory, suppliers]);
 
+  if (tab === "transactions") {
+    return <Navigate to="/dashboard/scm/history" replace />;
+  }
+  if (isSupplier && (!tab || !SUPPLIER_TABS.has(tab))) {
+    return <Navigate to="/dashboard/scm/deliveries" replace />;
+  }
   if (!tab || !VALID_TABS.includes(tab) || (OWNER_ONLY_TABS.has(tab) && !isOwner)) {
     return <Navigate to="/dashboard/scm/inventory" replace />;
   }
@@ -47,7 +57,11 @@ export function ScmPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 style={{ fontSize: "1.5rem" }}>Welcome back, {user?.name.split(" ")[0]} 👋</h1>
-          <p className="text-muted-foreground text-sm">Here's how your kitchen supply looks today.</p>
+          <p className="text-muted-foreground text-sm">
+            {isSupplier
+              ? "Here are the orders and deliveries waiting on you."
+              : "Here's how your kitchen supply looks today."}
+          </p>
         </div>
       </div>
 
@@ -105,8 +119,9 @@ export function ScmPage() {
 
       <Tabs value={tab} onValueChange={(v) => navigate(`/dashboard/scm/${v}`)} className="gap-4">
         <TabsList>
-          <TabsTrigger value="inventory">Inventory</TabsTrigger>
-          <TabsTrigger value="suppliers">Suppliers</TabsTrigger>
+          {!isSupplier && <TabsTrigger value="inventory">Inventory</TabsTrigger>}
+          {!isSupplier && <TabsTrigger value="suppliers">Suppliers</TabsTrigger>}
+          <TabsTrigger value="purchases">Purchases</TabsTrigger>
           <TabsTrigger value="deliveries" className="gap-1.5">
             Deliveries
             {stats.reorder.length > 0 && (
@@ -115,24 +130,27 @@ export function ScmPage() {
               </span>
             )}
           </TabsTrigger>
-          <TabsTrigger value="purchases">Purchases</TabsTrigger>
-          {isOwner && <TabsTrigger value="transactions">Transactions</TabsTrigger>}
+          {isOwner && <TabsTrigger value="history">History</TabsTrigger>}
           {isOwner && <TabsTrigger value="analytics">Analytics</TabsTrigger>}
         </TabsList>
-        <TabsContent value="inventory">
-          <InventoryTable />
-        </TabsContent>
-        <TabsContent value="suppliers">
-          <SuppliersGrid />
+        {!isSupplier && (
+          <TabsContent value="inventory">
+            <InventoryTable />
+          </TabsContent>
+        )}
+        {!isSupplier && (
+          <TabsContent value="suppliers">
+            <SuppliersGrid />
+          </TabsContent>
+        )}
+        <TabsContent value="purchases">
+          <PurchaseHistory />
         </TabsContent>
         <TabsContent value="deliveries">
           <DeliverySchedule />
         </TabsContent>
-        <TabsContent value="purchases">
-          <PurchaseHistory />
-        </TabsContent>
         {isOwner && (
-          <TabsContent value="transactions">
+          <TabsContent value="history">
             <TransactionHistory />
           </TabsContent>
         )}
